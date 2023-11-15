@@ -36,7 +36,8 @@ public class InteractionWithKafkaApplication {
                         if (exception != null) {
                             LOGGER.error(ExceptionUtils.getRootCauseMessage(exception), exception);
                         } else {
-                            LOGGER.debug("Callback metadata: {}", metadata);
+                            LOGGER.debug("Message successfully sent -> topic '{}', partition '{}', offcet '{}'",
+                                    metadata.topic(), metadata.partition(), metadata.offset());
                         }
                     }
             );
