@@ -1,5 +1,6 @@
 package com.eugerman.kafkainteraction;
 
+import com.eugerman.kafkainteraction.message.Journey;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -14,6 +15,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -21,7 +23,7 @@ import java.util.Properties;
 public class InteractionWithKafkaApplication {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InteractionWithKafkaApplication.class);
-    private static final String DEMO_TOPIC = "demo-topic";
+    private static final String JOURNEYS_TOPIC = "journeys";
 
     public static void main(String[] args) {
         SpringApplication.run(InteractionWithKafkaApplication.class);
@@ -29,14 +31,16 @@ public class InteractionWithKafkaApplication {
         KafkaConfiguration kafkaConfiguration = new KafkaConfiguration();
         Properties producerProperties = kafkaConfiguration.getProducerProperties();
 
-        try (Producer<String, String> kafkaProducer = new KafkaProducer<>(producerProperties)) {
+        try (Producer<String, Journey> kafkaProducer = new KafkaProducer<>(producerProperties)) {
+            Journey journey = new Journey(
+                    1, "Poland", "Italy", LocalDateTime.now(), "A direct flight from Warsaw");
             kafkaProducer.send(
-                    new ProducerRecord<>(DEMO_TOPIC, "alert", "demo alert"),
+                    new ProducerRecord<>(JOURNEYS_TOPIC, "journey", journey),
                     (metadata, exception) -> {
                         if (exception != null) {
                             LOGGER.error(ExceptionUtils.getRootCauseMessage(exception), exception);
                         } else {
-                            LOGGER.debug("Message successfully sent -> topic '{}', partition '{}', offcet '{}'",
+                            LOGGER.debug("Message successfully sent -> topic '{}', partition '{}', offset '{}'",
                                     metadata.topic(), metadata.partition(), metadata.offset());
                         }
                     }
@@ -46,9 +50,9 @@ public class InteractionWithKafkaApplication {
         }
 
         Properties consumerProperties = kafkaConfiguration.getConsumerProperties();
-        try (Consumer<String, String> kafkaConsumer = new KafkaConsumer<>(consumerProperties)) {
-            kafkaConsumer.subscribe(Collections.singleton(DEMO_TOPIC));
-            ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
+        try (Consumer<String, Journey> kafkaConsumer = new KafkaConsumer<>(consumerProperties)) {
+            kafkaConsumer.subscribe(Collections.singleton(JOURNEYS_TOPIC));
+            ConsumerRecords<String, Journey> records = kafkaConsumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
             records.forEach(record -> LOGGER.debug("Message consumed: {}:{}", record.key(), record.value()));
         } catch (KafkaException exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
