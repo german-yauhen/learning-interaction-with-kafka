@@ -1,6 +1,8 @@
 package com.eugerman.kafkainteraction;
 
 import com.eugerman.kafkainteraction.message.Journey;
+import com.eugerman.kafkainteraction.message.JourneyToAvroRecordConverter;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -15,7 +17,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -31,11 +33,15 @@ public class InteractionWithKafkaApplication {
         KafkaConfiguration kafkaConfiguration = new KafkaConfiguration();
         Properties producerProperties = kafkaConfiguration.getProducerProperties();
 
-        try (Producer<String, Journey> kafkaProducer = new KafkaProducer<>(producerProperties)) {
+        Producer<String, GenericRecord> kafkaProducer = new KafkaProducer<>(producerProperties);
+        try {
             Journey journey = new Journey(
-                    1, "Poland", "Italy", LocalDateTime.now(), "A direct flight from Warsaw");
+                    1, "Poland", "Italy", Instant.now().toEpochMilli(), "A direct flight from Warsaw");
+
+            GenericRecord record = JourneyToAvroRecordConverter.convert(journey);
+
             kafkaProducer.send(
-                    new ProducerRecord<>(JOURNEYS_TOPIC, "journey", journey),
+                    new ProducerRecord<>(JOURNEYS_TOPIC, "journey", record),
                     (metadata, exception) -> {
                         if (exception != null) {
                             LOGGER.error(ExceptionUtils.getRootCauseMessage(exception), exception);
@@ -47,12 +53,15 @@ public class InteractionWithKafkaApplication {
             );
         } catch (KafkaException exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
+        } finally {
+            kafkaProducer.flush();
+            kafkaProducer.close();
         }
 
         Properties consumerProperties = kafkaConfiguration.getConsumerProperties();
-        try (Consumer<String, Journey> kafkaConsumer = new KafkaConsumer<>(consumerProperties)) {
+        try (Consumer<String, GenericRecord> kafkaConsumer = new KafkaConsumer<>(consumerProperties)) {
             kafkaConsumer.subscribe(Collections.singleton(JOURNEYS_TOPIC));
-            ConsumerRecords<String, Journey> records = kafkaConsumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
+            ConsumerRecords<String, GenericRecord> records = kafkaConsumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
             records.forEach(record -> LOGGER.debug("Message consumed: {}:{}", record.key(), record.value()));
         } catch (KafkaException exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
