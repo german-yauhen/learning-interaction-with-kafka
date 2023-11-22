@@ -2,14 +2,6 @@ package com.eugerman.kafkainteraction;
 
 import java.util.Properties;
 
-import static org.apache.kafka.clients.CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
-import static org.apache.kafka.clients.CommonClientConfigs.CLIENT_ID_CONFIG;
-import static org.apache.kafka.clients.CommonClientConfigs.GROUP_ID_CONFIG;
-import static org.apache.kafka.clients.consumer.ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG;
-import static org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG;
-import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
-import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
-
 public class KafkaConfiguration {
 
     private final Properties producerProperties;
@@ -17,19 +9,19 @@ public class KafkaConfiguration {
 
     public KafkaConfiguration() {
         this.producerProperties = new Properties();
-        this.producerProperties.setProperty(BOOTSTRAP_SERVERS_CONFIG, "0.0.0.0:9094");
-        this.producerProperties.setProperty(CLIENT_ID_CONFIG, "com.eugerman.interaction.with.kafka");
-        this.producerProperties.setProperty(KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-        this.producerProperties.setProperty(VALUE_SERIALIZER_CLASS_CONFIG, "io.confluent.kafka.serializers.KafkaAvroSerializer");
+        this.producerProperties.setProperty("bootstrap.servers", "localhost:9094");
+        this.producerProperties.setProperty("client.id", "com.eugerman.interaction.with.kafka");
         this.producerProperties.setProperty("schema.registry.url", "http://localhost:8081");
+        this.producerProperties.setProperty("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        this.producerProperties.setProperty("value.serializer", "io.confluent.kafka.serializers.KafkaAvroSerializer");
 
         this.consumerProperties = new Properties();
-        this.consumerProperties.setProperty(BOOTSTRAP_SERVERS_CONFIG, "0.0.0.0:9094");
-        this.producerProperties.setProperty(CLIENT_ID_CONFIG, "com.eugerman.interaction.with.kafka");
-        this.consumerProperties.setProperty(GROUP_ID_CONFIG, "com.eugerman.interaction.with.kafka");
-        this.consumerProperties.setProperty(KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
-        this.consumerProperties.setProperty(VALUE_DESERIALIZER_CLASS_CONFIG, "io.confluent.kafka.serializers.KafkaAvroDeserializer");
+        this.consumerProperties.setProperty("bootstrap.servers", "localhost:9094");
+        this.producerProperties.setProperty("client.id", "com.eugerman.interaction.with.kafka");
+        this.consumerProperties.setProperty("group.id", "com.eugerman.interaction.with.kafka");
         this.consumerProperties.setProperty("schema.registry.url", "http://localhost:8081");
+        this.consumerProperties.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        this.consumerProperties.setProperty("value.deserializer", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
     }
 
     public Properties getProducerProperties() {
