@@ -1,8 +1,6 @@
 package com.eugerman.kafkainteraction;
 
 import com.eugerman.kafkainteraction.message.Journey;
-import com.eugerman.kafkainteraction.message.JourneyToAvroRecordConverter;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -33,15 +31,13 @@ public class InteractionWithKafkaApplication {
         KafkaConfiguration kafkaConfiguration = new KafkaConfiguration();
         Properties producerProperties = kafkaConfiguration.getProducerProperties();
 
-        Producer<String, GenericRecord> kafkaProducer = new KafkaProducer<>(producerProperties);
+        Producer<String, Journey> kafkaProducer = new KafkaProducer<>(producerProperties);
         try {
             Journey journey = new Journey(
                     1, "Poland", "Italy", Instant.now().toEpochMilli(), "A direct flight from Warsaw");
 
-            GenericRecord record = JourneyToAvroRecordConverter.convert(journey);
-
             kafkaProducer.send(
-                    new ProducerRecord<>(JOURNEYS_TOPIC, "journey", record),
+                    new ProducerRecord<>(JOURNEYS_TOPIC, "journey", journey),
                     (metadata, exception) -> {
                         if (exception != null) {
                             LOGGER.error(ExceptionUtils.getRootCauseMessage(exception), exception);
@@ -59,11 +55,11 @@ public class InteractionWithKafkaApplication {
         }
 
         Properties consumerProperties = kafkaConfiguration.getConsumerProperties();
-        try (Consumer<String, GenericRecord> kafkaConsumer = new KafkaConsumer<>(consumerProperties)) {
+        try (Consumer<String, Journey> kafkaConsumer = new KafkaConsumer<>(consumerProperties)) {
             kafkaConsumer.subscribe(Collections.singleton(JOURNEYS_TOPIC));
-            ConsumerRecords<String, GenericRecord> records = kafkaConsumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
+            ConsumerRecords<String, Journey> records = kafkaConsumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
             records.forEach(record -> LOGGER.debug("Message consumed: {}:{}", record.key(), record.value()));
-        } catch (KafkaException exc) {
+        } catch (Exception exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
         }
     }
