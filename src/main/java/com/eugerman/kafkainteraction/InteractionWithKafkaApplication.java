@@ -3,6 +3,7 @@ package com.eugerman.kafkainteraction;
 import com.eugerman.kafkainteraction.message.Journey;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -18,6 +19,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,31 +65,66 @@ public class InteractionWithKafkaApplication {
         Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
 
         Properties consumerProperties = kafkaConfiguration.getConsumerProperties();
-        try (Consumer<String, Journey> consumer = new KafkaConsumer<>(consumerProperties)) {
-            consumer.subscribe(Collections.singleton(JOURNEYS_TOPIC));
-            ConsumerRecords<String, Journey> records = consumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
-            records.forEach(record -> {
-                LOGGER.debug("Message consumed: {}:{}", record.key(), record.value());
-                currentOffsets.put(
-                        new TopicPartition(record.topic(), record.partition()),
-                        new OffsetAndMetadata(record.offset())
-                );
-            });
-            consumer.commitAsync(currentOffsets, (offsets, exc) -> {
-                if (exc != null) {
-                    LOGGER.error(ExceptionUtils.getRootCauseMessage(exc));
-                } else {
-                    LOGGER.debug("Committed {} offsets: {}",
-                            offsets.size(),
-                            offsets.values().stream()
-                                    .map(OffsetAndMetadata::offset)
-                                    .map(Objects::toString)
-                                    .collect(Collectors.joining(","))
+        Consumer<String, Journey> consumer = new KafkaConsumer<>(consumerProperties);
+
+        ConsumerRebalanceListener rebalanceListener = new ConsumerRebalanceListener() {
+
+            @Override
+            public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+                LOGGER.warn("Lost partitions {} in rebalance: {}",
+                        partitions.size(),
+                        partitions.stream().map(Objects::toString).collect(Collectors.joining(",")));
+                consumer.commitSync(currentOffsets);
+            }
+
+            @Override
+            public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+                LOGGER.info("Assigned {} partitions: {}",
+                        partitions.size(),
+                        partitions.stream().map(Objects::toString).collect(Collectors.joining(",")));
+            }
+
+        };
+
+        Duration timeout = Duration.ofMillis(5000);
+
+        try {
+            consumer.subscribe(Collections.singleton(JOURNEYS_TOPIC), rebalanceListener);
+
+            while (true) {
+                ConsumerRecords<String, Journey> records = consumer.poll(timeout);
+
+                records.forEach(record -> {
+                    LOGGER.debug("Message consumed: {}:{}", record.key(), record.value());
+                    currentOffsets.put(
+                            new TopicPartition(record.topic(), record.partition()),
+                            new OffsetAndMetadata(record.offset())
                     );
-                }
-            });
+                });
+
+                consumer.commitAsync(currentOffsets, (offsets, exc) -> {
+                    if (exc != null) {
+                        LOGGER.error(ExceptionUtils.getRootCauseMessage(exc));
+                    } else {
+                        LOGGER.debug("Committed {} offsets: {}",
+                                offsets.size(),
+                                offsets.values().stream()
+                                        .map(OffsetAndMetadata::offset)
+                                        .map(Objects::toString)
+                                        .collect(Collectors.joining(","))
+                        );
+                    }
+                });
+            }
+
         } catch (Exception exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
+        } finally {
+            try {
+                consumer.commitSync(currentOffsets);
+            } finally {
+                consumer.close();
+            }
         }
     }
 
