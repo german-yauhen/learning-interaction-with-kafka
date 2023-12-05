@@ -12,6 +12,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -91,7 +92,19 @@ public class InteractionWithKafkaApplication {
         try {
             consumer.subscribe(Collections.singleton(JOURNEYS_TOPIC), rebalanceListener);
 
+            Thread mainThread = Thread.currentThread();
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                LOGGER.info("Shutdown hook is taking place.");
+                consumer.wakeup();
+                try {
+                    mainThread.join();
+                } catch (InterruptedException exc) {
+                    LOGGER.error(ExceptionUtils.getRootCauseMessage(exc));
+                }
+            }));
+
             while (true) {
+
                 ConsumerRecords<String, Journey> records = consumer.poll(timeout);
 
                 records.forEach(record -> {
@@ -117,6 +130,8 @@ public class InteractionWithKafkaApplication {
                 });
             }
 
+        } catch (WakeupException exc) {
+            LOGGER.warn("Expected WakeupException exception during closing the consumer");
         } catch (Exception exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
         } finally {
