@@ -1,9 +1,12 @@
 package com.eugerman.kafkainteraction.consumer;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
@@ -12,6 +15,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class BasicConsumeLoop<K, V> implements Runnable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BasicConsumeLoop.class);
     private final List<String> topics;
     private final Consumer<K, V> consumer;
     private final Duration consumeTimeout;
@@ -37,6 +42,8 @@ public abstract class BasicConsumeLoop<K, V> implements Runnable {
                 ConsumerRecords<K, V> records = consumer.poll(consumeTimeout);
                 records.forEach(this::process);
             }
+        } catch (Exception exc) {
+            LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
         } finally {
             consumer.close();
             shutdownLatch.countDown();
