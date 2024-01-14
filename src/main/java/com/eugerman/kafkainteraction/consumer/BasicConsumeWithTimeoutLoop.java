@@ -1,9 +1,11 @@
 package com.eugerman.kafkainteraction.consumer;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.kafka.clients.consumer.CommitFailedException;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +40,7 @@ public abstract class BasicConsumeWithTimeoutLoop<K, V> implements Runnable {
             while (isActive()) {
                 ConsumerRecords<K, V> records = consumer.poll(consumeTimeout);
                 records.forEach(this::process);
+                doCommitSync();
             }
         } catch (Exception exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
@@ -48,12 +51,27 @@ public abstract class BasicConsumeWithTimeoutLoop<K, V> implements Runnable {
         }
     }
 
+    public void shutdown() throws InterruptedException {
+        this.shutdown.set(true);
+        this.shutdownLatch.await();
+    }
+
     private boolean isActive() {
         return !shutdown.get();
     }
 
-    public void shutdown() throws InterruptedException {
-        this.shutdown.set(true);
-        this.shutdownLatch.await();
+    private void doCommitSync() {
+        try {
+            consumer.commitSync();
+        } catch (WakeupException exc) {
+            // The loop is being interrupted,
+            // but finish the commit first and then rethrow the exception so that the main loop can exit
+            consumer.commitSync();
+            throw exc;
+        } catch (CommitFailedException exc) {
+            LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
+            // If there is any state that depends on the commit we can clean it up
+            // or rollback changes otherwise the exception mey be skipped
+        }
     }
 }

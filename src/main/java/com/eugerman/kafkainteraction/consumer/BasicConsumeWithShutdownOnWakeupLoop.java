@@ -1,6 +1,7 @@
 package com.eugerman.kafkainteraction.consumer;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.kafka.clients.consumer.CommitFailedException;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -34,6 +35,7 @@ public abstract class BasicConsumeWithShutdownOnWakeupLoop<K, V> implements Runn
             while (isActive()) {
                 ConsumerRecords<K, V> records = consumer.poll(Duration.ofMillis(Integer.MAX_VALUE));
                 records.forEach(this::process);
+                doCommitSync();
             }
         } catch (WakeupException exc) {
             LOGGER.warn("Expected WakeupException exception during closing the consumer");
@@ -46,12 +48,27 @@ public abstract class BasicConsumeWithShutdownOnWakeupLoop<K, V> implements Runn
         }
     }
 
+    public void shutdown() throws InterruptedException {
+        consumer.wakeup();
+        this.shutdownLatch.await();
+    }
+
     private boolean isActive() {
         return true;
     }
 
-    public void shutdown() throws InterruptedException {
-        consumer.wakeup();
-        this.shutdownLatch.await();
+    private void doCommitSync() {
+        try {
+            consumer.commitSync();
+        } catch (WakeupException exc) {
+            // The loop is being interrupted,
+            // but finish the commit first and then rethrow the exception so that the main loop can exit
+            consumer.commitSync();
+            throw exc;
+        } catch (CommitFailedException exc) {
+            LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
+            // If there is any state that depends on the commit we can clean it up
+            // or rollback changes otherwise the exception mey be skipped
+        }
     }
 }
