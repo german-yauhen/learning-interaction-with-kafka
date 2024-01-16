@@ -70,6 +70,7 @@ public abstract class BasicConsumeWithShutdownOnWakeupLoop<K, V> implements Runn
             consumer.commitSync();
             throw exc;
         } catch (CommitFailedException exc) {
+            // The exc is thrown when the commit cannot be completed because the group has been rebalanced
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
             // If there is any state that depends on the commit we can clean it up
             // or rollback changes otherwise the exception mey be skipped
