@@ -28,6 +28,9 @@ public abstract class BasicConsumeWithShutdownOnWakeupLoop<K, V> implements Runn
 
     public abstract void process(ConsumerRecord<K, V> record);
 
+    /**
+     *  “at least once” delivery since the commit follows the message processing
+     */
     @Override
     public void run() {
         try {
