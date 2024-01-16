@@ -44,7 +44,7 @@ public abstract class BasicConsumeWithTimeoutLoop<K, V> implements Runnable {
             }
         } catch (Exception exc) {
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
-            // TODO: as an option - a rollback
+            // As an option - a rollback
         } finally {
             consumer.close();
             shutdownLatch.countDown();
@@ -69,6 +69,7 @@ public abstract class BasicConsumeWithTimeoutLoop<K, V> implements Runnable {
             consumer.commitSync();
             throw exc;
         } catch (CommitFailedException exc) {
+            // The exc is thrown when the commit cannot be completed because the group has been rebalanced
             LOGGER.error(ExceptionUtils.getRootCauseMessage(exc), exc);
             // If there is any state that depends on the commit we can clean it up
             // or rollback changes otherwise the exception mey be skipped
