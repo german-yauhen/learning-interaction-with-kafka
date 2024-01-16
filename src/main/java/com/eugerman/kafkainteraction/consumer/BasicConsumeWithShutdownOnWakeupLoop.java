@@ -63,6 +63,7 @@ public abstract class BasicConsumeWithShutdownOnWakeupLoop<K, V> implements Runn
         } catch (WakeupException exc) {
             // The loop is being interrupted,
             // but finish the commit first and then rethrow the exception so that the main loop can exit
+            // !!! The recursive call is safe since the wakeup will only be triggered once
             consumer.commitSync();
             throw exc;
         } catch (CommitFailedException exc) {
