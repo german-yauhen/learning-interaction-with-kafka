@@ -53,7 +53,7 @@ public abstract class BasicConsumeWithShutdownOnWakeupLoop<K, V> implements Runn
 
     public void shutdown() throws InterruptedException {
         consumer.wakeup();
-        this.shutdownLatch.await();
+        shutdownLatch.await();
     }
 
     private boolean isActive() {

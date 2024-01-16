@@ -44,8 +44,14 @@ public abstract class BasicConsumeLoopWithDeliveryGuarantee<K, V> implements Run
         } catch (WakeupException exc) {
             LOGGER.warn("Expected WakeupException exception during closing the consumer");
         } finally {
-
+            consumer.close();
+            shutdownLatch.countDown();
         }
+    }
+
+    public void shutdown() throws InterruptedException {
+        consumer.wakeup();
+        shutdownLatch.await();
     }
 
     private boolean isActive() {

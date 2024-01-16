@@ -52,8 +52,8 @@ public abstract class BasicConsumeWithTimeoutLoop<K, V> implements Runnable {
     }
 
     public void shutdown() throws InterruptedException {
-        this.shutdown.set(true);
-        this.shutdownLatch.await();
+        shutdown.set(true);
+        shutdownLatch.await();
     }
 
     private boolean isActive() {
