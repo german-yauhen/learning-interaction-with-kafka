@@ -33,6 +33,7 @@ public abstract class BasicConsumeLoopWithRebalanceListener<K, V> implements Run
         this.shutdownLatch = new CountDownLatch(1);
     }
 
+    // Incorporated sync commits on rebalance and on close
     @Override
     public void run() {
         try {
